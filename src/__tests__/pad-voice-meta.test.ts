@@ -4,11 +4,13 @@
  */
 
 import {
+  PAD_VOICE_META_KEY,
   asPadConfig,
   asPadVoiceMeta,
   parsePromptHints,
   patchLabel,
   planReconcile,
+  stampPadAnchor,
 } from '../pad-voice-meta';
 
 describe('asPadVoiceMeta', () => {
@@ -84,5 +86,25 @@ describe('patchLabel', () => {
   it('letters the patches', () => {
     expect(patchLabel(0)).toBe('patch A');
     expect(patchLabel(3)).toBe('patch D');
+  });
+});
+
+describe('stampPadAnchor', () => {
+  it('anchors a newborn track as a group of ONE (meta only — config stays unstamped so prompt hints survive)', async () => {
+    const written: Array<{ sceneId: string; key: string; value: unknown }> = [];
+    const host = {
+      setSceneData: async (sceneId: string, key: string, value: unknown) => {
+        written.push({ sceneId, key, value });
+      },
+    };
+    await stampPadAnchor(host, 'scene-1', (dbId, suffix) => `track:${dbId}:${suffix}`, 'db-new');
+
+    expect(written).toEqual([
+      {
+        sceneId: 'scene-1',
+        key: `track:db-new:${PAD_VOICE_META_KEY}`,
+        value: { groupId: 'db-new', voiceIndex: 0, label: 'patch A' },
+      },
+    ]);
   });
 });

@@ -9,6 +9,7 @@
 
 import type {
   GroupParseSpec,
+  PluginHost,
   ResolvedTrackGroup,
   GeneratorTrackState,
 } from '@signalsandsorcery/plugin-sdk';
@@ -63,6 +64,27 @@ export function padGroupIsComplete(
   group: ResolvedTrackGroup<PadVoiceMeta, GeneratorTrackState>
 ): boolean {
   return group.members.some((m) => m.meta.voiceIndex === 0);
+}
+
+/**
+ * Anchor a NEWBORN pad track as a voice-group of ONE, so the group header —
+ * and with it the five intent controls (patches / duration / pattern /
+ * voicing / rests) — exists BEFORE the first generation. Without this the
+ * user only meets the controls after burning a full generation on defaults.
+ *
+ * The CONFIG is deliberately NOT stamped: generation resolves
+ * stored > prompt hints > defaults, so pre-writing defaults would silently
+ * override hints like "3 pads". The header persists config only when the
+ * user touches a control — explicit beats hints beats defaults.
+ */
+export async function stampPadAnchor(
+  host: Pick<PluginHost, 'setSceneData'>,
+  sceneId: string,
+  keyFor: (dbId: string, suffix: string) => string,
+  dbId: string
+): Promise<void> {
+  const meta: PadVoiceMeta = { groupId: dbId, voiceIndex: 0, label: patchLabel(0) };
+  await host.setSceneData(sceneId, keyFor(dbId, PAD_VOICE_META_KEY), meta);
 }
 
 // --- reconcile planner (pure; the bass/ensemble shape) ---

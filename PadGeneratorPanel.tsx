@@ -45,6 +45,7 @@ import {
   asPadConfig,
   padGroupIsComplete,
   padVoiceGroupSpec,
+  stampPadAnchor,
   type PadConfig,
   type PadVoiceMeta,
 } from './src/pad-voice-meta';
@@ -316,6 +317,12 @@ function createPadGeneratorAdapter(host: PluginHost): GeneratorPanelAdapter<PadV
       importTracks: false,
     },
     createTrackOptions: () => ({ loadSynth: true, synthName: 'Surge XT' }),
+    // Anchor every newborn as a group of ONE so the header's intent controls
+    // (patches / duration / pattern / voicing / rests) exist BEFORE the first
+    // generation — never make the user burn a generation to reach a control.
+    onTrackCreated: async (handle, ctx) => {
+      await stampPadAnchor(host, ctx.activeSceneId, ctx.trackDataKey, handle.dbId);
+    },
     applyPortedTrackSound: async (handle: PluginTrackHandle) => {
       try {
         await host.shufflePreset(handle.id);
