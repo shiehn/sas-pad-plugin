@@ -348,7 +348,9 @@ function createPadGeneratorAdapter(host: PluginHost): GeneratorPanelAdapter<PadV
     sound: surgeSound,
     shuffle: {
       shuffle: async (track, excludeNames) => {
-        const result = await host.shufflePreset(track.handle.id, excludeNames);
+        const result = await host.shufflePreset(track.handle.id, excludeNames, {
+          description: track.prompt,
+        });
         return { appliedName: result.presetName };
       },
       isExhaustedError: (err) =>

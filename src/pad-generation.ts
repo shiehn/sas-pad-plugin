@@ -318,7 +318,12 @@ export async function generatePads(
       const member = memberByBucket.get(i)!;
       if (!member.isNew) continue;
       try {
-        const result = await host.shufflePreset(member.engineId, appliedNames);
+        // Pass the pad prompt so the host's semantic retrieval picks by
+        // timbre ("warm analog pads"); the exclude list still guarantees the
+        // rotation's patches differ from each other.
+        const result = await host.shufflePreset(member.engineId, appliedNames, {
+          description: prompt,
+        });
         appliedNames.push(result.presetName);
       } catch {
         /* non-fatal — default patch */
