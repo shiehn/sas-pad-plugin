@@ -28,6 +28,7 @@ import {
   createSurgeSoundAdapter,
   ConfirmDialog,
   parseLLMNoteResponse,
+  promptEnterToGenerate,
 } from '@signalsandsorcery/plugin-sdk';
 import {
   PAD_DURATION_MODES,
@@ -132,6 +133,10 @@ function PadVoiceGroupRow({
           value={anchorTrack.prompt}
           placeholder="Describe the pads…"
           onChange={(e) => ctx.handlers.promptChange(anchorTrack.handle.id, e.target.value)}
+          onKeyDown={promptEnterToGenerate(
+            () => ctx.handlers.generate(anchorTrack.handle.id),
+            generateDisabled
+          )}
           className="flex-1 min-w-[120px] bg-sas-panel border border-sas-border rounded-sm px-2 py-0.5 text-xs text-sas-text placeholder:text-sas-muted/50 focus:border-sas-accent focus:outline-none"
           data-testid="pad-group-prompt"
         />
