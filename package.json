@@ -1,6 +1,6 @@
 {
   "name": "@signalsandsorcery/pad-generator",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Multi-part pad generator — the scene's chords voiced as sustained pads that ROTATE across 1-4 Surge XT patches (bar 1 → patch A, bar 2 → patch B, …) with whole / half / rhythmic-pattern durations, full or partial voicings, and rests",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

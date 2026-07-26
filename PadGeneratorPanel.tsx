@@ -27,6 +27,7 @@ import {
   useGeneratorPanelCore,
   createSurgeSoundAdapter,
   ConfirmDialog,
+  GroupCollapseChevron,
   parseLLMNoteResponse,
   promptEnterToGenerate,
 } from '@signalsandsorcery/plugin-sdk';
@@ -125,6 +126,7 @@ function PadVoiceGroupRow({
       style={{ borderLeftColor: '#14B8A6', borderLeftWidth: '3px' }}
     >
       <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-sas-border flex-wrap">
+        <GroupCollapseChevron collapsed={ctx.collapsed} onToggle={ctx.onToggleCollapse} what="pads" />
         <span className="text-[9px] uppercase tracking-wide text-sas-muted whitespace-nowrap">
           Pads · {group.members.length} {group.members.length === 1 ? 'patch' : 'patches'}
         </span>
@@ -259,21 +261,23 @@ function PadVoiceGroupRow({
         </button>
       </div>
 
-      <div className="p-1 space-y-1">
-        {group.members.map((m) =>
-          ctx.renderDefaultTrackRow(m.track, {
-            // The prompt field shows the MECHANICAL patch label ("patch A");
-            // the pad intent lives on the group header (the anchor's prompt
-            // key). Patch count is owned by the header dropdown, so per-patch
-            // generate/delete/copy are off (the group owns those).
-            prompt: m.meta.label || 'pad patch',
-            onPromptChange: undefined,
-            onGenerate: undefined,
-            onCopy: undefined,
-            onDelete: undefined,
-          })
-        )}
-      </div>
+      {!ctx.collapsed && (
+        <div className="p-1 space-y-1">
+          {group.members.map((m) =>
+            ctx.renderDefaultTrackRow(m.track, {
+              // The prompt field shows the MECHANICAL patch label ("patch A");
+              // the pad intent lives on the group header (the anchor's prompt
+              // key). Patch count is owned by the header dropdown, so per-patch
+              // generate/delete/copy are off (the group owns those).
+              prompt: m.meta.label || 'pad patch',
+              onPromptChange: undefined,
+              onGenerate: undefined,
+              onCopy: undefined,
+              onDelete: undefined,
+            })
+          )}
+        </div>
+      )}
 
       {confirmDelete && (
         <ConfirmDialog
@@ -285,7 +289,7 @@ function PadVoiceGroupRow({
             setConfirmDelete(false);
             void ctx.deleteGroup(
               group.members.map((m) => ({ engineId: m.track.handle.id, dbId: m.dbId })),
-              [PAD_VOICE_META_KEY, PAD_CONFIG_KEY, 'prompt', 'soundHistory', 'role']
+              [PAD_VOICE_META_KEY, PAD_CONFIG_KEY, 'prompt', 'soundHistory', 'role', 'groupUi']
             );
           }}
           onCancel={() => setConfirmDelete(false)}
