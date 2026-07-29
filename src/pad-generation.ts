@@ -31,7 +31,12 @@ import type {
   LLMToolUseRequest,
   LLMFunctionDeclaration,
 } from '@signalsandsorcery/plugin-sdk';
-import { formatConcurrentTracks } from '@signalsandsorcery/plugin-sdk';
+import {
+  formatConcurrentTracks,
+  panelClipEndSeconds,
+  panelMeter,
+  panelQuarterNotesPerBar,
+} from '@signalsandsorcery/plugin-sdk';
 import {
   buildPadSlotGrid,
   DEFAULT_PATTERN_ID,
@@ -127,6 +132,10 @@ export async function generatePads(
   const musical = await host.getMusicalContext();
   const bars = musical.bars > 0 ? musical.bars : 4;
   const bpm = musical.bpm > 0 ? musical.bpm : 120;
+  // Scene meter (P8b): '4/4' for absent/malformed values — every derived
+  // number below then reproduces the legacy 4/4 arithmetic exactly.
+  const meter = panelMeter(musical);
+  const qnPerBar = panelQuarterNotesPerBar(musical);
   if (musical.chordProgression.length === 0) {
     throw new Error(
       'No chords found — generate a scene contract first (pads voice the scene\'s chord progression).'
@@ -140,6 +149,7 @@ export async function generatePads(
     patternId: config.patternId,
     rests: config.rests,
     chordTiming: musical.chordProgression,
+    quarterNotesPerBar: qnPerBar,
   });
   if (grid.voicingSlots.length === 0) {
     throw new Error('The current duration/rests settings produce only silence — relax the rests.');
@@ -169,7 +179,10 @@ export async function generatePads(
     'Musical Context:',
     `- Key: ${musical.key} ${musical.mode}`,
     `- BPM: ${bpm}`,
-    `- Bars: ${bars} (clip = ${bars * 4} quarter-note beats)`,
+    // 4/4 renders `bars * 4` exactly (byte-identity); the meter line only
+    // appears on non-4/4 scenes.
+    `- Bars: ${bars} (clip = ${bars * qnPerBar} quarter-note beats)`,
+    meter !== '4/4' ? `- Time signature: ${meter} (each bar = ${qnPerBar} quarter notes)` : null,
     musical.genre ? `- Genre: ${musical.genre}` : null,
     `- Chord Progression: ${chordText}`,
     musical.contractPrompt ? `- Scene Contract: ${musical.contractPrompt}` : null,
@@ -180,7 +193,7 @@ export async function generatePads(
     .filter(Boolean)
     .join('\n');
 
-  const systemPrompt = buildPadSystemPrompt(grid.voicingSlots, config.voicing);
+  const systemPrompt = buildPadSystemPrompt(grid.voicingSlots, config.voicing, meter);
   const baseUser = `${contextText}\n\n${concurrentBlock ? `${concurrentBlock}\n\n` : ''}User request: "${anchorPrompt}"`;
 
   // ── the joint call (+ at most ONE guided retry) ────────────────────────
@@ -269,10 +282,10 @@ export async function generatePads(
     );
   }
 
-  const secondsPerBeat = 60 / bpm;
   const clipFor = (notes: PadNote[]): MidiClipData => ({
     startTime: 0,
-    endTime: bars * 4 * secondsPerBeat,
+    // Scene-loop span in the scene meter (4/4 = the legacy bars*4*60/bpm).
+    endTime: panelClipEndSeconds({ bars, bpm, timeSignature: meter }),
     tempo: bpm,
     notes: notes.map((n) => ({
       pitch: n.pitch,
@@ -378,6 +391,7 @@ export async function generatePads(
     editNotes: clipFor(filled[0].notes).notes,
     editBars: bars,
     editBpm: bpm,
+    editBeatsPerBar: qnPerBar,
   }));
   services.markEditLoaded(anchorTrack.handle.id);
   host.showToast(

@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`buildPadSystemPrompt — 4/4 byte identity 4/4 output is byte-identical to the pre-meter prompt (snapshot pin): full-voicing 1`] = `
+"You are a pad voicing arranger. You voice a chord progression for a sustained pad instrument.
+The rhythm, durations, and patch rotation are already decided — you ONLY choose the pitches of each voicing.
+
+Rules:
+- Register: every pitch in MIDI 48-76 (C3-E5). Pads sit in the mid register — no bass notes, no lead lines.
+- FULL voicing: 4-5 notes per slot — root, 3rd, 7th (or 5th), plus at most one color tone (9th, added tone) that stays inside the printed chord's scale.
+- Voice-leading is the whole job: hold common tones between consecutive slots and move each voice by 2 semitones or less where possible. Never jump the whole voicing.
+- Use only chord tones plus in-key color tones. When the chord repeats across slots, vary the voicing subtly (inversion, drop a doubling) rather than copying it.
+
+Voice these 4 slots (submit ALL of them via submit_pads, in order):
+  slot 0: bar 1, beats 0-4, chord Am
+  slot 1: bar 2, beats 4-8, chord Am
+  slot 2: bar 3, beats 8-12, chord F
+  slot 3: bar 4, beats 12-16, chord F"
+`;
+
+exports[`buildPadSystemPrompt — 4/4 byte identity 4/4 output is byte-identical to the pre-meter prompt (snapshot pin): partial-voicing 1`] = `
+"You are a pad voicing arranger. You voice a chord progression for a sustained pad instrument.
+The rhythm, durations, and patch rotation are already decided — you ONLY choose the pitches of each voicing.
+
+Rules:
+- Register: every pitch in MIDI 48-76 (C3-E5). Pads sit in the mid register — no bass notes, no lead lines.
+- PARTIAL voicing: 2-3 notes per slot — guide tones first (3rd and 7th), root only when it helps the line.
+- Voice-leading is the whole job: hold common tones between consecutive slots and move each voice by 2 semitones or less where possible. Never jump the whole voicing.
+- Use only chord tones plus in-key color tones. When the chord repeats across slots, vary the voicing subtly (inversion, drop a doubling) rather than copying it.
+
+Voice these 4 slots (submit ALL of them via submit_pads, in order):
+  slot 0: bar 1, beats 0-4, chord Am
+  slot 1: bar 2, beats 4-8, chord Am
+  slot 2: bar 3, beats 8-12, chord F
+  slot 3: bar 4, beats 12-16, chord F"
+`;

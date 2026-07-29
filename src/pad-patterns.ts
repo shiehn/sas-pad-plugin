@@ -15,6 +15,28 @@
  *   strikes        — the MIDI events (one per play segment × chord region),
  *                    each referencing its voicing slot's pitches.
  *
+ * METER (P8b multi-time-signature): the grid is parameterized on the scene
+ * meter's QUARTER notes per bar (`quarterNotesPerBar`, default 4 = the
+ * legacy 4/4 grid — omitted call sites are bit-identical to before). All
+ * `startBeat`/`durationBeats` values are quarter notes, whatever the meter:
+ *   - a base slot spans one bar (`quarterNotesPerBar` qn) or half a bar in
+ *     'half' mode (`quarterNotesPerBar / 2` qn);
+ *   - rhythmic patterns are authored on a 4-qn reference bar and scaled
+ *     linearly to the meter's bar (segments are bar-FRACTION shapes: in 6/8
+ *     "pulsing quarters" = four even pulses of 0.75 qn; in asymmetric meters
+ *     the even subdivision may fall off the notated beat grid — accepted,
+ *     deterministic, and documented rather than snapped);
+ *   - 'half-bar' rests play the FRONT half of each slot (half the bar in
+ *     whole mode, a quarter-bar in half mode) — in odd meters the midpoint
+ *     can bisect a notated beat (7/8 → play 1.75 qn), which is fine for
+ *     sustained pads;
+ *   - rotation is INDEX-based (`baseSlotIndex % voiceCount`) and therefore
+ *     meter-agnostic: bar 1 → patch A holds in every meter.
+ * FRACTIONAL bars (7/8 → 3.5 qn) are safe: every derived quantity divides
+ * only by powers of two, and curated meters' qn-per-bar values are dyadic
+ * rationals (num·4/den, den ∈ {2,4,8,16}), so all products, offsets, and
+ * bar-boundary quotients below are EXACT in floating point.
+ *
  * Pure and dependency-free: trivially testable, reusable by the prompt
  * builder and the enforcement layer alike.
  */
@@ -27,9 +49,21 @@ export const PAD_DURATION_MODES: readonly PadDurationMode[] = ['whole', 'half', 
 export const PAD_RESTS_MODES: readonly PadRestsMode[] = ['off', 'sparse', 'half-bar'];
 export const PAD_VOICING_MODES: readonly PadVoicingMode[] = ['full', 'partial'];
 
-const BEATS_PER_BAR = 4;
+/** Quarter notes per bar of the default 4/4 meter (the legacy grid). */
+const DEFAULT_QUARTER_NOTES_PER_BAR = 4;
+/**
+ * The AUTHORING bar span of rhythmic patterns: segments below are written
+ * against a 4-qn reference bar and scaled by `quarterNotesPerBar / 4` at
+ * grid-build time, so each pattern keeps its bar-fraction identity in every
+ * meter (front-half = the bar's first half, etc.).
+ */
+const PATTERN_AUTHORING_BEATS = 4;
 
-/** One segment of a rhythmic pattern, normalized to a single 4-beat bar. */
+/**
+ * One segment of a rhythmic pattern, normalized to the 4-qn AUTHORING bar
+ * (`PATTERN_AUTHORING_BEATS`); scaled to the meter's bar when the grid is
+ * built.
+ */
 export interface PadPatternSegment {
   startBeat: number;
   durationBeats: number;
@@ -144,6 +178,13 @@ export interface BuildPadSlotGridOptions {
   patternId?: string;
   rests: PadRestsMode;
   chordTiming: ReadonlyArray<PadChordTiming>;
+  /**
+   * QUARTER notes per bar of the scene meter (panel-core's
+   * `panelQuarterNotesPerBar`): 4/4 → 4, 6/8 → 3, 7/8 → 3.5 (fractional is
+   * fine — see the header's exactness note). Omitted/invalid → 4, the
+   * legacy 4/4 grid, so existing call sites are unchanged.
+   */
+  quarterNotesPerBar?: number;
 }
 
 /** Chord symbol sounding at a beat (first region containing it wins). */
@@ -172,13 +213,25 @@ export function buildPadSlotGrid(opts: BuildPadSlotGridOptions): PadSlotGrid {
   const bars = Math.max(1, Math.floor(opts.bars));
   const voiceCount = Math.max(1, Math.floor(opts.voiceCount));
   const pattern = padPatternById(opts.patternId ?? DEFAULT_PATTERN_ID);
+  const qnPerBar =
+    opts.quarterNotesPerBar !== undefined &&
+    Number.isFinite(opts.quarterNotesPerBar) &&
+    opts.quarterNotesPerBar > 0
+      ? opts.quarterNotesPerBar
+      : DEFAULT_QUARTER_NOTES_PER_BAR;
+  // Rhythmic segments are authored on a 4-qn bar; scale keeps their
+  // bar-fraction shape in the meter's bar (division by 4 — exact).
+  const patternScale = qnPerBar / PATTERN_AUTHORING_BEATS;
 
   // Rests apply to whole/half only — in rhythmic mode the pattern owns rests.
   const rests: PadRestsMode = opts.duration === 'rhythmic' ? 'off' : opts.rests;
 
   // ── base slots (the rotation units) ─────────────────────────────────────
-  const baseSlotBeats = opts.duration === 'half' ? BEATS_PER_BAR / 2 : BEATS_PER_BAR;
-  const baseSlotCount = (bars * BEATS_PER_BAR) / baseSlotBeats;
+  // 'half' slots span half the bar in every meter (7/8 → 1.75 qn). The slot
+  // COUNT is derived structurally (2 per bar / 1 per bar), never by dividing
+  // beat totals, so fractional bars cannot produce a fractional count.
+  const baseSlotBeats = opts.duration === 'half' ? qnPerBar / 2 : qnPerBar;
+  const baseSlotCount = bars * (opts.duration === 'half' ? 2 : 1);
 
   interface PlaySegment {
     startBeat: number;
@@ -199,14 +252,15 @@ export function buildPadSlotGrid(opts: BuildPadSlotGridOptions): PadSlotGrid {
       for (const seg of pattern.segments) {
         if (!seg.play) continue;
         playSegments.push({
-          startBeat: slotStart + seg.startBeat,
-          endBeat: slotStart + seg.startBeat + seg.durationBeats,
+          startBeat: slotStart + seg.startBeat * patternScale,
+          endBeat: slotStart + (seg.startBeat + seg.durationBeats) * patternScale,
           voiceIndex,
           baseSlotIndex: i,
         });
       }
     } else {
-      // 'half-bar' rests truncate each play slot to its first half.
+      // 'half-bar' rests truncate each play slot to its first half (half the
+      // bar in whole mode — a division by 2, exact for every curated meter).
       const playBeats = rests === 'half-bar' ? baseSlotBeats / 2 : baseSlotBeats;
       playSegments.push({
         startBeat: slotStart,
@@ -244,7 +298,9 @@ export function buildPadSlotGrid(opts: BuildPadSlotGridOptions): PadSlotGrid {
         slotIndexByKey.set(key, slotIndex);
         voicingSlots.push({
           index: slotIndex,
-          bar: Math.floor(start / BEATS_PER_BAR),
+          // Exact at bar boundaries: starts are dyadic-rational sums and the
+          // boundary quotient start/qnPerBar is an exact integer (header note).
+          bar: Math.floor(start / qnPerBar),
           startBeat: start,
           endBeat: end,
           chordSymbol: symbol,
@@ -261,7 +317,7 @@ export function buildPadSlotGrid(opts: BuildPadSlotGridOptions): PadSlotGrid {
         durationBeats: end - start,
         voiceIndex: seg.voiceIndex,
         voicingSlotIndex: slotIndex,
-        bar: Math.floor(start / BEATS_PER_BAR),
+        bar: Math.floor(start / qnPerBar),
       });
     }
   }
