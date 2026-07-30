@@ -9,6 +9,7 @@ Rules:
 - FULL voicing: 4-5 notes per slot — root, 3rd, 7th (or 5th), plus at most one color tone (9th, added tone) that stays inside the printed chord's scale.
 - Voice-leading is the whole job: hold common tones between consecutive slots and move each voice by 2 semitones or less where possible. Never jump the whole voicing.
 - Use only chord tones plus in-key color tones. When the chord repeats across slots, vary the voicing subtly (inversion, drop a doubling) rather than copying it.
+- Band density: the user message lists the other tracks' notes. Where the drums/percussion are BUSY across a slot's bars, favor the LOW end of the allowed notes-per-slot — leave room for the groove; where they rest or thin out, favor the high end with a richer color choice. Stay inside the stated notes-per-slot range either way.
 
 Voice these 4 slots (submit ALL of them via submit_pads, in order):
   slot 0: bar 1, beats 0-4, chord Am
@@ -26,6 +27,7 @@ Rules:
 - PARTIAL voicing: 2-3 notes per slot — guide tones first (3rd and 7th), root only when it helps the line.
 - Voice-leading is the whole job: hold common tones between consecutive slots and move each voice by 2 semitones or less where possible. Never jump the whole voicing.
 - Use only chord tones plus in-key color tones. When the chord repeats across slots, vary the voicing subtly (inversion, drop a doubling) rather than copying it.
+- Band density: the user message lists the other tracks' notes. Where the drums/percussion are BUSY across a slot's bars, favor the LOW end of the allowed notes-per-slot — leave room for the groove; where they rest or thin out, favor the high end with a richer color choice. Stay inside the stated notes-per-slot range either way.
 
 Voice these 4 slots (submit ALL of them via submit_pads, in order):
   slot 0: bar 1, beats 0-4, chord Am

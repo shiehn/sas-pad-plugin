@@ -50,6 +50,9 @@ export function buildPadSystemPrompt(
     voicingRule,
     '- Voice-leading is the whole job: hold common tones between consecutive slots and move each voice by 2 semitones or less where possible. Never jump the whole voicing.',
     '- Use only chord tones plus in-key color tones. When the chord repeats across slots, vary the voicing subtly (inversion, drop a doubling) rather than copying it.',
+    // Drum-interplay follow-on (2026-07-30): note-count is the pad's only
+    // density lever (the grid owns timing), so yield thickness to the band.
+    "- Band density: the user message lists the other tracks' notes. Where the drums/percussion are BUSY across a slot's bars, favor the LOW end of the allowed notes-per-slot — leave room for the groove; where they rest or thin out, favor the high end with a richer color choice. Stay inside the stated notes-per-slot range either way.",
     ...(meterRules
       ? [
           '',

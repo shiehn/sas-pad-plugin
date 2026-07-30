@@ -7,7 +7,8 @@
  * parameter landed, the 4/4 prompt — with the parameter omitted OR passed
  * explicitly as '4/4' — must still match that snapshot byte-for-byte.
  * Never `--ci`-update this snapshot as part of a meter change; a diff here
- * means 4/4 behavior drifted.
+ * means 4/4 behavior drifted. Last deliberately revised for the band-density
+ * style bullet (2026-07-30, hand-edited snap).
  */
 import { buildPadSystemPrompt } from '../pad-prompt';
 import { buildPadSlotGrid, type PadChordTiming } from '../pad-patterns';
