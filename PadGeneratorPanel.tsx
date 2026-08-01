@@ -324,6 +324,12 @@ function createPadGeneratorAdapter(host: PluginHost): GeneratorPanelAdapter<PadV
       exportMidi: true,
       transitionDesigner: true,
       importTracks: false,
+      // Bus-strip DSP clusters (DUCK + WOB): kick-derived sidechain pump
+      // (ghost grids work with no kicks) and tempo-locked motion — filter
+      // wobble, amp gate/tremolo, auto-pan. Rendered per-sample in the
+      // engine, identical live and bounced.
+      busSidechain: true,
+      busMotion: true,
     },
     createTrackOptions: () => ({ loadSynth: true, synthName: 'Surge XT' }),
     // Anchor every newborn as a group of ONE so the header's intent controls
