@@ -30,6 +30,7 @@ import {
   GroupCollapseChevron,
   parseLLMNoteResponse,
   promptEnterToGenerate,
+  useRegenerateGuard,
 } from '@signalsandsorcery/plugin-sdk';
 import {
   PAD_DURATION_MODES,
@@ -114,6 +115,18 @@ function PadVoiceGroupRow({
   const anySolo = group.members.some((m) => m.track.runtimeState.solo);
   const isGenerating = group.members.some((m) => m.track.isGenerating);
   const generateDisabled = isGenerating || !anchorTrack.prompt.trim();
+
+  // The group Generate drives the anchor directly (never through TrackRow), so
+  // it carries its own overwrite guard: one press rewrites EVERY patch.
+  const regenerate = useRegenerateGuard({
+    hasMidi: anchorTrack.hasMidi,
+    onGenerate: () => ctx.handlers.generate(anchorTrack.handle.id),
+    subject: 'The pad stack',
+    detail: `All ${group.members.length} ${
+      group.members.length === 1 ? 'patch is' : 'patches are'
+    } rewritten from the new voicing.`,
+    testIdPrefix: `pad-group-regenerate-confirm-${group.groupId}`,
+  });
   const isRhythmic = config.duration === 'rhythmic';
 
   const selectClass =
@@ -135,10 +148,7 @@ function PadVoiceGroupRow({
           value={anchorTrack.prompt}
           placeholder="Describe the pads…"
           onChange={(e) => ctx.handlers.promptChange(anchorTrack.handle.id, e.target.value)}
-          onKeyDown={promptEnterToGenerate(
-            () => ctx.handlers.generate(anchorTrack.handle.id),
-            generateDisabled
-          )}
+          onKeyDown={promptEnterToGenerate(regenerate.request, generateDisabled)}
           className="flex-1 min-w-[120px] bg-sas-panel border border-sas-border rounded-sm px-2 py-0.5 text-xs text-sas-text placeholder:text-sas-muted/50 focus:border-sas-accent focus:outline-none"
           data-testid="pad-group-prompt"
         />
@@ -218,9 +228,13 @@ function PadVoiceGroupRow({
           ))}
         </select>
         <button
-          onClick={() => ctx.handlers.generate(anchorTrack.handle.id)}
+          onClick={regenerate.request}
           disabled={generateDisabled}
-          title="Regenerate the whole pad stack"
+          title={
+            anchorTrack.hasMidi
+              ? 'Regenerate the whole pad stack — replaces the current MIDI'
+              : 'Generate the whole pad stack'
+          }
           className={`px-2 py-0.5 text-[10px] font-medium rounded-sm border transition-colors ${
             generateDisabled
               ? 'bg-sas-panel border-sas-border text-sas-muted/50 cursor-not-allowed'
@@ -295,6 +309,7 @@ function PadVoiceGroupRow({
           onCancel={() => setConfirmDelete(false)}
         />
       )}
+      {regenerate.dialog}
     </div>
   );
 }
