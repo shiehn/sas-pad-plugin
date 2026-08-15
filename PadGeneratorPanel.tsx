@@ -59,6 +59,7 @@ import {
   PAD_MAX_VOICES,
   PAD_MIN_VOICES,
 } from './src/pad-generation';
+import { prepareVoiceRemoval } from './src/remove-voice';
 import { buildPadSystemPrompt } from './src/pad-prompt';
 import { createPadTransitionGroupAdapter } from './src/pad-transition';
 
@@ -108,6 +109,48 @@ function PadVoiceGroupRow({
     const next = { ...config, ...patch };
     setConfig(next);
     if (scene) void host.setSceneData(scene, configKey, next).catch(() => {});
+  };
+
+  // Per-patch delete (TrackRow's own ConfirmDialog gates the click): the
+  // scene-data surgery runs FIRST — config shrink, contiguous renumber, and
+  // anchor handoff when patch A goes — then the track + key scrub. Abort on
+  // surgery failure so the stack is never left half-re-pointed with the patch
+  // already gone.
+  const handlePatchDelete = (member: (typeof group.members)[number]): void => {
+    void (async () => {
+      try {
+        if (scene) {
+          await prepareVoiceRemoval({
+            host,
+            sceneId: scene,
+            keyFor: ctx.services.trackDataKey,
+            members: group.members.map((gm) => ({ dbId: gm.dbId, meta: gm.meta })),
+            deletedDbId: member.dbId,
+          });
+        }
+      } catch (err) {
+        host.showToast(
+          'error',
+          'Failed to delete patch',
+          err instanceof Error ? err.message : String(err)
+        );
+        return;
+      }
+      // The header dropdown reads LOCAL config state, and its scene-data key
+      // only moves on an anchor handoff — mirror the shrink here so a later
+      // control change can't write the pre-delete count back.
+      setConfig((c) => ({
+        ...c,
+        voiceCount: Math.max(
+          PAD_MIN_VOICES,
+          Math.min(PAD_MAX_VOICES, group.members.length - 1)
+        ),
+      }));
+      await ctx.deleteGroup(
+        [{ engineId: member.track.handle.id, dbId: member.dbId }],
+        [PAD_VOICE_META_KEY, PAD_CONFIG_KEY, 'prompt', 'soundHistory', 'role', 'groupUi']
+      );
+    })();
   };
 
   const memberEngineIds = group.members.map((m) => m.track.handle.id);
@@ -281,13 +324,14 @@ function PadVoiceGroupRow({
             ctx.renderDefaultTrackRow(m.track, {
               // The prompt field shows the MECHANICAL patch label ("patch A");
               // the pad intent lives on the group header (the anchor's prompt
-              // key). Patch count is owned by the header dropdown, so per-patch
-              // generate/delete/copy are off (the group owns those).
+              // key). Per-patch generate/copy are off (the group owns those).
+              // Delete IS per-patch: it shrinks the stack (and the stored patch
+              // count) instead of regenerating.
               prompt: m.meta.label || 'pad patch',
               onPromptChange: undefined,
               onGenerate: undefined,
               onCopy: undefined,
-              onDelete: undefined,
+              onDelete: () => handlePatchDelete(m),
             })
           )}
         </div>
